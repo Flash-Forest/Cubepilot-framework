@@ -10,6 +10,7 @@
 #endif
 
 static uint8_t icm20x48_get_whoami(enum icm20x48_imu_type_t imu_type);
+static void icm20x48_select_bank(struct icm20x48_instance_s* instance, uint8_t bank);
 
 bool icm20x48_init(struct icm20x48_instance_s* instance, uint8_t spi_idx, uint32_t select_line, enum icm20x48_imu_type_t imu_type) {
     // Ensure sufficient power-up time has elapsed
@@ -26,6 +27,25 @@ bool icm20x48_init(struct icm20x48_instance_s* instance, uint8_t spi_idx, uint32
     // Read USER_CTRL, disable MST_I2C, write USER_CTRL, and wait long enough for any active I2C transaction to complete
     icm20x48_write_reg(instance, ICM20948_REG_USER_CTRL,  icm20x48_read_reg(instance, ICM20948_REG_USER_CTRL) & ~(1<<5));
     chThdSleep(LL_MS2ST(10));
+    // Add an interrupt on sensor data ready
+    icm20x48_write_reg(instance, ICM20948_REG_INT_ENABLE_1, 1<<0);
+    chThdSleep(LL_MS2ST(10));
+
+    // // set configs for the accelerometer and gyro
+
+    // // select user bank 2
+    // icm20x48_select_bank(instance, REG_BANK2);
+    // chThdSleep(LL_MS2ST(10));
+    // // set accel config
+    // icm20x48_write_reg(instance, ICM20948_REG_ACCEL_CONFIG, (0<<2)|(1<<1)|(1<<0)); // set bits 1 and 0 to 1
+    // chThdSleep(LL_MS2ST(10));
+    // // set gyro config
+    // icm20x48_write_reg(instance, ICM20948_REG_GYRO_CONFIG_1, (0<<2)|(1<<1)|(1<<0)); //500dps full scale
+    // chThdSleep(LL_MS2ST(10));
+    // // select user bank 0
+    // icm20x48_select_bank(instance, REG_BANK0);
+    // chThdSleep(LL_MS2ST(10));
+
     // Perform a device reset, wait for completion, then wake the device
     // Datasheet is unclear on time required for wait time after reset, but mentions 100ms under "start-up time for register read/write from power-up"
     icm20x48_write_reg(instance, ICM20948_REG_PWR_MGMT_1, 1<<7);
@@ -149,3 +169,36 @@ bool icm20x48_i2c_slv_write(struct icm20x48_instance_s* instance, uint8_t addres
     return true;
 }
 
+
+bool icm20x48_update(struct icm20x48_instance_s* instance) {
+
+    if ((icm20x48_read_reg(instance, ICM20948_REG_INT_STATUS_1)) & (1<<0) == 0) {
+        return false;
+    }
+
+    uint8_t accel_bytes[6];
+    uint8_t gyro_bytes[6];
+
+    for (uint8_t i = 0; i < 6; i++) {
+        accel_bytes[i] = icm20x48_read_reg(instance, ICM20948_REG_ACCEL_XOUT_H + i);
+        gyro_bytes[i] = icm20x48_read_reg(instance, ICM20948_REG_GYRO_XOUT_H + i);
+    }
+
+    int16_t accel_data[3];
+    int16_t gyro_data[3];
+
+    // combine high and low bytes into 16-bit values
+    for (uint8_t i = 0; i < 3; i++) {
+        accel_data[i] = (int16_t)(((uint16_t)accel_bytes[i * 2] << 8) | accel_bytes[i * 2 + 1]);
+        gyro_data[i] = (int16_t)(((uint16_t)gyro_bytes[i * 2] << 8) | gyro_bytes[i * 2 + 1]);
+    }
+
+    instance->meas.ax = (float)accel_data[0] * 9.81f / 16384.0f;
+    instance->meas.ay = (float)accel_data[1] * 9.81f / 16384.0f;
+    instance->meas.az = (float)accel_data[2] * 9.81f / 16384.0f;
+    instance->meas.gx = (float)gyro_data[0] * 250.0f / 32768.0f;
+    instance->meas.gy = (float)gyro_data[1] * 250.0f / 32768.0f;
+    instance->meas.gz = (float)gyro_data[2] * 250.0f / 32768.0f;
+
+    return true;
+}

@@ -1,6 +1,6 @@
 #include <ch.h>
 
-#if __GNUC__ != 6 || __GNUC_MINOR__ != 3 || __GNUC_PATCHLEVEL__ != 1
+#if __GNUC__ != 10 || __GNUC_MINOR__ != 3 || __GNUC_PATCHLEVEL__ != 1
 #error Please use arm-none-eabi-gcc 6.3.1.
 #endif
 

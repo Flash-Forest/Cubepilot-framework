@@ -10,6 +10,16 @@ struct icm20x48_instance_s {
     struct spi_device_s spi_dev;
     enum icm20x48_imu_type_t imu_type;
     uint8_t curr_bank;
+
+    struct {
+        uint64_t timestamp;
+        float ax;
+        float ay;
+        float az;
+        float gx;
+        float gy;
+        float gz;
+    } meas;
 };
 
 bool icm20x48_init(struct icm20x48_instance_s* instance, uint8_t spi_idx, uint32_t select_line, enum icm20x48_imu_type_t imu_type);
@@ -19,3 +29,5 @@ bool icm20x48_i2c_slv_read(struct icm20x48_instance_s* instance, uint8_t address
 bool icm20x48_i2c_slv_write(struct icm20x48_instance_s* instance, uint8_t address, uint8_t reg, uint8_t value);
 uint8_t icm20x48_read_reg(struct icm20x48_instance_s* instance, uint16_t reg);
 void icm20x48_write_reg(struct icm20x48_instance_s* instance, uint16_t reg, uint8_t value);
+
+bool icm20x48_update(struct icm20x48_instance_s* instance);

@@ -76,6 +76,7 @@ class UbxCsvParser:
             self.ClassDict.update(class_details)
         elif (parsetype == "MsgID"):
             df = df.dropna()
+            df.drop_duplicates(subset=['Mnemonic', 'Type'], inplace=True)
             msg_details = df.set_index(['Mnemonic','Type']).to_dict(orient='index')
             for key, value in sorted(msg_details.iteritems()):
                 old_key = key
